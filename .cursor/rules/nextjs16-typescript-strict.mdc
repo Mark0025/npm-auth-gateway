@@ -1,0 +1,505 @@
+---
+description: "Enforces strict TypeScript configuration for Next.js 16. Type safety, proper compiler options, and IDE integration for catching errors at development time."
+alwaysApply: true
+---
+
+# Next.js 16 TypeScript - Strict Configuration
+
+This rule enforces **strict TypeScript settings** that catch errors during development, not production.
+
+**Philosophy**: If it compiles with strict TypeScript, it's probably correct.
+
+---
+
+## 🎯 Core Principle
+
+TypeScript is your **first line of defense** against bugs. Configure it strictly to catch:
+- Type errors
+- Null/undefined issues
+- Missing return types
+- Unused variables
+- Import errors
+
+**We enforce**: Strict mode, proper paths, typed routes, typed environment variables.
+
+---
+
+## ✅ REQUIRED: Base tsconfig.json
+
+### Minimal Strict Configuration
+
+Every Next.js 16 + TypeScript project MUST have this baseline:
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    // ===== STRICT TYPE CHECKING =====
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // ===== MODULE RESOLUTION =====
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+
+    // ===== EMIT =====
+    "noEmit": true,
+    "incremental": true,
+
+    // ===== NEXT.JS SPECIFIC =====
+    "target": "ES2020",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+
+    // ===== PATH ALIASES =====
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+```
+
+---
+
+## 🔒 REQUIRED: Strict Mode Flags
+
+### What Each Flag Does
+
+```json
+{
+  "compilerOptions": {
+    // ===== STRICT MODE (enables all strict checks) =====
+    "strict": true,
+    // This enables:
+    // - strictNullChecks: null and undefined must be explicit
+    // - strictFunctionTypes: function params are contravariant
+    // - strictBindCallApply: bind/call/apply are correctly typed
+    // - strictPropertyInitialization: class properties must be initialized
+    // - noImplicitThis: 'this' must have explicit type
+    // - alwaysStrict: emit "use strict"
+    // - noImplicitAny: no implicit 'any' types
+
+    // ===== ADDITIONAL STRICT CHECKS =====
+    "noUncheckedIndexedAccess": true,
+    // Array/object access returns 'T | undefined'
+    // Catches: array[999] might be undefined
+
+    "noImplicitOverride": true,
+    // Must use 'override' keyword when overriding methods
+    // Catches: accidental method name typos in subclasses
+
+    "noFallthroughCasesInSwitch": true,
+    // Prevents missing 'break' in switch statements
+    // Catches: switch fallthrough bugs
+  }
+}
+```
+
+**Why strict mode is mandatory**:
+- Catches null/undefined errors at compile time
+- Forces explicit type annotations
+- Prevents common runtime errors
+- Industry standard for production TypeScript
+
+---
+
+## 📁 REQUIRED: Next.js Include Paths
+
+### What Must Be Included
+
+```json
+{
+  "include": [
+    "next-env.d.ts",        // Next.js type definitions
+    ".next/types/**/*.ts",  // Generated route types
+    "**/*.ts",              // All TypeScript files
+    "**/*.tsx"              // All React TypeScript files
+  ],
+  "exclude": [
+    "node_modules"          // Never check dependencies
+  ]
+}
+```
+
+**Why `.next/types/**/*.ts` is critical**:
+- Contains generated route types for typed routes
+- Enables `typedRoutes: true` in next.config.ts
+- Auto-generated on `next dev`, `next build`, `next typegen`
+
+---
+
+## 🎯 REQUIRED: Path Aliases
+
+### Standard Next.js Aliases
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],                    // Everything from root
+      "@/components/*": ["components/*"], // Optional: specific paths
+      "@/lib/*": ["lib/*"],
+      "@/features/*": ["features/*"]
+    }
+  }
+}
+```
+
+**Benefits**:
+- Absolute imports instead of `../../..`
+- Easy refactoring
+- Consistent import paths
+
+**Usage**:
+```tsx
+// ✅ GOOD: Absolute import
+import { Button } from "@/components/ui/button"
+
+// ❌ BAD: Relative import
+import { Button } from "../../components/ui/button"
+```
+
+---
+
+## 🚀 RECOMMENDED: IDE Integration
+
+### VS Code TypeScript Plugin
+
+Enable the Next.js TypeScript plugin:
+
+1. `Ctrl/⌘ + Shift + P`
+2. "TypeScript: Select TypeScript Version"
+3. "Use Workspace Version"
+
+**What it provides**:
+- Warning for invalid segment config options
+- IntelliSense for available options
+- Ensures `'use client'` is used correctly
+- Validates client hooks only in Client Components
+
+### TypeScript Version
+
+Use TypeScript 5.1.3+ for async Server Components:
+
+```json filename="package.json"
+{
+  "devDependencies": {
+    "typescript": "^5.7.3"  // Latest version
+  }
+}
+```
+
+---
+
+## ✅ RECOMMENDED: Typed Routes
+
+### Enable Statically Typed Links
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  typedRoutes: true,  // Enable typed routing
+}
+
+export default nextConfig
+```
+
+```json filename="tsconfig.json"
+{
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",  // Required for typed routes
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}
+```
+
+**What you get**:
+
+```tsx
+import Link from 'next/link'
+import type { Route } from 'next'
+
+// ✅ Valid routes are typed
+<Link href="/dashboard" />       // ✅ Compiles
+<Link href="/blog/[slug]" />     // ✅ Compiles
+
+// ❌ Invalid routes are errors
+<Link href="/dashbord" />        // ❌ TypeScript error
+
+// ✅ Dynamic routes need casting
+const slug = "nextjs"
+<Link href={`/blog/${slug}` as Route} />
+```
+
+**Benefits**:
+- Catch typos in routes at compile time
+- Refactor routes safely
+- Auto-complete for valid routes
+
+---
+
+## ✅ RECOMMENDED: Typed Environment Variables
+
+### Enable Environment Variable Types
+
+```ts filename="next.config.ts"
+const nextConfig: NextConfig = {
+  experimental: {
+    typedEnv: true,  // Generate .d.ts for env vars
+  },
+}
+```
+
+**What it does**:
+- Generates `.next/types/process.env.d.ts`
+- Editor IntelliSense for `process.env.X`
+- Catches typos in env var names
+
+**Example**:
+```tsx
+// With typedEnv: true
+
+// ✅ Auto-complete shows available vars
+const apiKey = process.env.NEXT_PUBLIC_API_KEY
+
+// ❌ Typo is caught at compile time
+const key = process.env.NEXT_PUBLIC_API_KY  // Error: Property doesn't exist
+```
+
+---
+
+## 🔧 RECOMMENDED: Build Optimizations
+
+### Incremental Compilation
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    "incremental": true  // Enable incremental compilation
+  }
+}
+```
+
+**What it does**:
+- Faster subsequent builds
+- Only recompiles changed files
+- Creates `.tsbuildinfo` cache file
+
+**Add to `.gitignore`**:
+```
+.tsbuildinfo
+```
+
+### Skip Lib Check
+
+```json
+{
+  "compilerOptions": {
+    "skipLibCheck": true  // Don't type-check dependencies
+  }
+}
+```
+
+**Why**: Your dependencies should already be correctly typed. Checking them wastes time.
+
+---
+
+## 🎯 RECOMMENDED: Project Structure Paths
+
+### For Feature-Based Architecture
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["components/*"],
+      "@/ui/*": ["components/ui/*"],
+      "@/features/*": ["features/*"],
+      "@/lib/*": ["lib/*"],
+      "@/actions/*": ["actions/*"],
+      "@/services/*": ["services/*"],
+      "@/types/*": ["types/*"],
+      "@/hooks/*": ["hooks/*"]
+    }
+  }
+}
+```
+
+**Benefits**:
+- Clear separation of concerns
+- Easy to find code
+- Consistent import paths
+
+---
+
+## 🚨 FORBIDDEN Patterns
+
+### ❌ NEVER: Disable Strict Mode
+
+```json
+// ❌ NEVER DO THIS
+{
+  "compilerOptions": {
+    "strict": false,              // ❌ Defeats purpose of TypeScript
+    "noImplicitAny": false,       // ❌ Allows any types
+    "strictNullChecks": false     // ❌ Allows null bugs
+  }
+}
+```
+
+**These are NEVER acceptable.**
+
+### ❌ NEVER: Ignore Build Errors in Config
+
+```ts filename="next.config.ts"
+// ❌ NEVER DO THIS
+const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,      // ❌ Allows broken builds
+  },
+}
+```
+
+**Only exception**: If you run `tsc --noEmit` separately in CI.
+
+### ❌ NEVER: Missing Include Paths
+
+```json
+// ❌ INCOMPLETE
+{
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx"
+    // ❌ Missing: ".next/types/**/*.ts"
+  ]
+}
+```
+
+**This breaks**: Typed routes, generated types.
+
+---
+
+## 📋 TypeScript Configuration Checklist
+
+Before deploying, verify:
+
+- [ ] `strict: true` is enabled
+- [ ] `noUncheckedIndexedAccess: true` is set
+- [ ] `noImplicitOverride: true` is set
+- [ ] `.next/types/**/*.ts` is in `include` array
+- [ ] Path aliases configured (`@/*`)
+- [ ] TypeScript 5.1.3+ installed
+- [ ] `typedRoutes: true` in next.config.ts (if using)
+- [ ] `typedEnv: true` in next.config.ts (if using)
+- [ ] `incremental: true` for faster builds
+- [ ] `.tsbuildinfo` in `.gitignore`
+
+---
+
+## 🎓 Complete Production tsconfig.json
+
+```json filename="tsconfig.json"
+{
+  "compilerOptions": {
+    // ===== STRICT TYPE CHECKING =====
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // ===== MODULE RESOLUTION =====
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+
+    // ===== EMIT =====
+    "noEmit": true,
+    "incremental": true,
+
+    // ===== NEXT.JS SPECIFIC =====
+    "target": "ES2020",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+
+    // ===== PATH ALIASES =====
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["components/*"],
+      "@/ui/*": ["components/ui/*"],
+      "@/features/*": ["features/*"],
+      "@/lib/*": ["lib/*"],
+      "@/actions/*": ["actions/*"],
+      "@/services/*": ["services/*"],
+      "@/types/*": ["types/*"],
+      "@/hooks/*": ["hooks/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",  // Generated types (typed routes, env vars)
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+```
+
+---
+
+## 🔑 Key Takeaways
+
+1. **Always strict** - `strict: true` is non-negotiable
+2. **Type your routes** - `typedRoutes: true` catches navigation errors
+3. **Type your env vars** - `typedEnv: true` catches config errors
+4. **Use path aliases** - `@/*` instead of relative imports
+5. **Include generated types** - `.next/types/**/*.ts` is required
+6. **Incremental builds** - `incremental: true` for speed
+7. **Never ignore errors** - Fix them, don't hide them
+
+---
+
+**Remember**: TypeScript is only as good as your configuration. Start strict, and you'll catch bugs before your users do.

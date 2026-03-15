@@ -1,0 +1,28 @@
+services:
+  npm-auth-proxy:
+    build:
+      context: .
+      args:
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    container_name: npm-auth-proxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    env_file:
+      - .env
+    volumes:
+      - npm-auth-logs:/data/login-logs
+    networks:
+      - nginx-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  npm-auth-logs:
+
+networks:
+  nginx-network:
+    external: true

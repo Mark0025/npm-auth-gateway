@@ -1,0 +1,438 @@
+Below is a **production-grade Cursor rule** for **feature-based architecture in Next.js 16**.
+This rule teaches Cursor to generate **large-scale maintainable applications** instead of flat folder chaos.
+
+This architecture is used in **large SaaS and enterprise Next.js apps** because it scales to **millions of users and large teams**.
+
+Place it at:
+
+```
+.cursor/rules/nextjs16-feature-architecture.mdc
+```
+
+---
+
+# `.cursor/rules/nextjs16-feature-architecture.mdc`
+
+```mdc
+---
+description: "Defines feature-based architecture for scalable Next.js 16 applications using domain modules and vertical slicing."
+alwaysApply: false
+---
+
+# Next.js 16 Feature Architecture Rules
+
+This rule defines how to organize **large Next.js 16 applications** using **feature-based architecture** (also called domain architecture or vertical slicing).
+
+The goal is to:
+
+- prevent flat folder chaos
+- scale to large applications
+- isolate domains
+- keep routing separate from business logic
+
+This architecture should be used whenever the application contains **multiple domains or complex business logic**.
+
+---
+
+# 1. Architecture Philosophy
+
+Next.js routing lives in `/app`, but business logic should be organized by **feature domains**.
+
+Bad architecture:
+
+```
+
+components/
+utils/
+hooks/
+services/
+
+```
+
+This becomes impossible to maintain at scale.
+
+Instead use **domain modules**.
+
+---
+
+# 2. Domain Feature Structure
+
+Each feature represents a **business domain**.
+
+Example domains:
+
+- auth
+- users
+- billing
+- dashboard
+- products
+- analytics
+
+Each feature must contain its own:
+
+- components
+- server logic
+- actions
+- types
+
+Example structure:
+
+```
+
+features/
+auth/
+components/
+actions/
+services/
+hooks/
+types.ts
+users/
+components/
+actions/
+services/
+types.ts
+
+```
+
+---
+
+# 3. Relationship With App Router
+
+The `/app` directory **only defines routing**.
+
+Business logic should live inside **features**.
+
+Example:
+
+```
+
+app/dashboard/page.tsx
+features/dashboard/components/Dashboard.tsx
+
+```
+
+Page files should remain thin.
+
+Bad:
+
+```
+
+app/dashboard/page.tsx
+400 lines of UI + logic
+
+```
+
+Good:
+
+```
+
+app/dashboard/page.tsx
+
+````
+
+```tsx
+import { DashboardPage } from "@/features/dashboard/components/dashboard-page"
+````
+
+---
+
+# 4. Feature Folder Layout
+
+Each feature must follow this structure:
+
+```
+features/
+  feature-name/
+    components/
+    actions/
+    services/
+    hooks/
+    lib/
+    types.ts
+```
+
+Responsibilities:
+
+components → UI
+actions → server actions
+services → business logic
+hooks → client hooks
+lib → utilities internal to the feature
+
+Never place unrelated logic inside a feature.
+
+---
+
+# 5. Server Actions Inside Features
+
+Server actions should live inside the feature.
+
+Example:
+
+```
+features/users/actions/update-user.ts
+```
+
+Bad:
+
+```
+actions/update-user.ts
+```
+
+unless the action is globally shared.
+
+---
+
+# 6. Feature Components
+
+Feature UI should live inside:
+
+```
+features/<feature>/components
+```
+
+Example:
+
+```
+features/dashboard/components/dashboard-page.tsx
+features/dashboard/components/revenue-chart.tsx
+```
+
+Never place domain-specific UI in global `components/`.
+
+---
+
+# 7. Shared UI Components
+
+Only **truly reusable UI** should live in the global components folder.
+
+Examples:
+
+```
+components/button.tsx
+components/modal.tsx
+components/input.tsx
+components/card.tsx
+```
+
+Rule:
+
+If a component is used by only **one feature**, it belongs inside that feature.
+
+---
+
+# 8. Feature Services
+
+Business logic must live in services.
+
+Example:
+
+```
+features/users/services/user-service.ts
+```
+
+Responsibilities:
+
+* database access
+* external APIs
+* domain logic
+
+Never place business logic directly inside:
+
+```
+page.tsx
+layout.tsx
+components
+```
+
+---
+
+# 9. Feature Types
+
+Types must live inside the feature.
+
+Example:
+
+```
+features/billing/types.ts
+```
+
+Global types should only be used when shared across domains.
+
+Example:
+
+```
+types/global.ts
+```
+
+---
+
+# 10. Feature Hooks
+
+Client hooks belong to the feature.
+
+Example:
+
+```
+features/analytics/hooks/use-metrics.ts
+```
+
+Bad:
+
+```
+hooks/useMetrics.ts
+```
+
+unless globally reusable.
+
+---
+
+# 11. Route to Feature Pattern
+
+The correct pattern is:
+
+```
+app route → feature component → services/actions
+```
+
+Example flow:
+
+```
+app/dashboard/page.tsx
+   ↓
+features/dashboard/components/dashboard-page.tsx
+   ↓
+features/dashboard/services/dashboard-service.ts
+```
+
+This keeps routing separate from domain logic.
+
+---
+
+# 12. Feature Imports
+
+Use absolute imports.
+
+Example:
+
+```
+import { getUser } from "@/features/users/services/user-service"
+```
+
+Never use deep relative imports like:
+
+```
+../../../services/user-service
+```
+
+---
+
+# 13. Large Feature Modules
+
+Large features may contain nested domains.
+
+Example:
+
+```
+features/billing/
+  subscriptions/
+  invoices/
+  payments/
+```
+
+Each subdomain may contain its own:
+
+```
+components
+services
+actions
+```
+
+---
+
+# 14. When NOT to Use Feature Architecture
+
+Small projects can remain simple.
+
+Feature architecture is recommended when:
+
+* application exceeds 10–15 routes
+* multiple teams work on the project
+* application contains multiple domains
+* significant server logic exists
+
+---
+
+# 15. Absolute Rules
+
+Never generate:
+
+```
+utils/
+helpers/
+misc/
+stuff/
+```
+
+These folders lead to architectural decay.
+
+All logic must belong to either:
+
+* a feature domain
+* shared infrastructure
+* the routing layer
+
+---
+
+# 16. Final Architecture Example
+
+A production-grade Next.js 16 structure:
+
+```
+app/
+components/
+features/
+  auth/
+  dashboard/
+  users/
+  billing/
+lib/
+types/
+public/
+```
+
+Routing lives in `app`.
+
+Business domains live in `features`.
+
+Shared infrastructure lives in `lib`.
+
+This architecture scales cleanly as the application grows.
+
+```
+
+---
+
+## Result
+
+With these **three rules together**:
+
+```
+
+nextjs16-core-architecture.mdc
+nextjs16-project-structure.mdc
+nextjs16-feature-architecture.mdc
+
+```
+
+Cursor will now automatically generate **clean enterprise-grade Next.js architecture** instead of things like:
+
+```
+
+utils/
+helpers/
+hooks/
+components/
+services/
+
+
