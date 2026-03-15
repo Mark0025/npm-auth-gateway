@@ -1,10 +1,10 @@
 services:
-  npm-auth-proxy:
+  npm-auth-gateway:
     build:
       context: .
       args:
         - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-    container_name: npm-auth-proxy
+    container_name: npm-auth-gateway
     restart: unless-stopped
     ports:
       - "127.0.0.1:3100:3100"

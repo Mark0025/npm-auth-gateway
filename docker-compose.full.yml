@@ -1,0 +1,57 @@
+# Full stack: Nginx Proxy Manager + Auth Gateway
+# Use this if you don't have NPM running yet.
+#
+# 1. cp .env.example .env  (fill in Clerk keys + NPM admin credentials)
+# 2. docker compose -f docker-compose.full.yml up -d
+# 3. Go to http://localhost:81 to set up NPM (default: admin@example.com / changeme)
+# 4. Create an NPM admin user matching your .env NPM_API_EMAIL/PASSWORD
+# 5. Create a proxy host for the auth gateway (see README)
+
+services:
+  # Nginx Proxy Manager — the boss
+  # https://nginxproxymanager.com/
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"       # HTTP
+      - "443:443"     # HTTPS
+      - "81:81"       # NPM Admin UI
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    networks:
+      - nginx-network
+
+  # Auth Gateway — companion app
+  npm-auth-gateway:
+    build:
+      context: .
+      args:
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    container_name: npm-auth-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    env_file:
+      - .env
+    volumes:
+      - npm-auth-logs:/data/login-logs
+    networks:
+      - nginx-network
+    depends_on:
+      - nginx-proxy-manager
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  npm-data:
+  npm-letsencrypt:
+  npm-auth-logs:
+
+networks:
+  nginx-network:
