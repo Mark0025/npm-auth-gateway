@@ -1,10 +1,30 @@
 # NPM Auth Gateway
 
-User-level access control for [Nginx Proxy Manager](https://nginxproxymanager.com/) — auto IP whitelisting via auth providers.
+<p align="center">
+  <a href="https://nginxproxymanager.com/">
+    <img src="https://nginxproxymanager.com/icon.png" alt="Nginx Proxy Manager" width="120" />
+  </a>
+</p>
+
+<p align="center">
+  User-level access control for <a href="https://nginxproxymanager.com/"><strong>Nginx Proxy Manager</strong></a>
+  <br />
+  Auto IP whitelisting via auth providers
+</p>
+
+<p align="center">
+  <a href="https://github.com/NginxProxyManager/nginx-proxy-manager">NPM on GitHub</a> ·
+  <a href="https://nginxproxymanager.com/">NPM Website</a> ·
+  <a href="#quick-start">Quick Start</a>
+</p>
+
+---
+
+> **Requires [Nginx Proxy Manager](https://github.com/NginxProxyManager/nginx-proxy-manager)** — this is a companion app, not a replacement. NPM handles all SSL, reverse proxying, and access list enforcement. This app adds user management on top.
 
 ## The Problem
 
-NPM's access lists are powerful — they enforce IP-based whitelisting at the nginx level. But managing them is manual:
+[Nginx Proxy Manager](https://nginxproxymanager.com/) by [@jc21](https://github.com/jc21) makes reverse proxying and SSL dead simple. Its access lists are powerful — they enforce IP-based whitelisting at the nginx level. But managing IPs for multiple users is manual:
 
 - User needs access → admin manually adds their IP to an access list
 - User's IP changes (mobile, VPN, travel) → admin re-adds the new IP
@@ -17,13 +37,13 @@ NPM's access lists are powerful — they enforce IP-based whitelisting at the ng
 A companion app that sits alongside NPM on the same Docker network. It adds **user-level access control** on top of NPM's existing access list system — without modifying NPM.
 
 ```
-Browser → NPM (SSL) → Auth Gateway → Auth Provider (Clerk)
+Browser → NPM (SSL) → Auth Gateway → Auth Provider
                                           ↓
                                     NPM REST API (:81)
                                     auto-add IP to access lists
 ```
 
-**NPM remains the boss.** The gateway only reads and writes through NPM's REST API. All access enforcement stays in NPM's nginx config. If the gateway goes down, all existing IP whitelists persist.
+**NPM remains the boss.** The gateway only reads and writes through [NPM's REST API](https://github.com/NginxProxyManager/nginx-proxy-manager). All access enforcement stays in NPM's nginx config. If the gateway goes down, all existing IP whitelists persist.
 
 ## How It Works
 
@@ -52,10 +72,10 @@ Browser → NPM (SSL) → Auth Gateway → Auth Provider (Clerk)
 
 | Responsibility | Who Handles It |
 |---|---|
-| SSL termination | **NPM** |
-| Proxy host configuration | **NPM** |
-| Access list enforcement (nginx) | **NPM** |
-| IP whitelisting (the actual security) | **NPM** |
+| SSL termination | [**Nginx Proxy Manager**](https://nginxproxymanager.com/) |
+| Proxy host configuration | [**Nginx Proxy Manager**](https://nginxproxymanager.com/) |
+| Access list enforcement (nginx) | [**Nginx Proxy Manager**](https://nginxproxymanager.com/) |
+| IP whitelisting (the actual security) | [**Nginx Proxy Manager**](https://nginxproxymanager.com/) |
 | User identity (who is this person?) | **Auth Provider** |
 | User → access list mapping | **This App** |
 | Auto IP detection + whitelisting | **This App** |
@@ -68,7 +88,7 @@ Reads:  Server Component → npm-api.ts → NPM REST API → JSON
 Writes: Client Component → Server Action → auth check → NPM API → revalidate
 ```
 
-**No database.** NPM is the data store. User metadata stored in auth provider (Clerk). Zero state duplication.
+**No database.** NPM is the data store for all proxy and access list configuration. User metadata stored in auth provider. Zero state duplication.
 
 ### Security Model
 
@@ -91,8 +111,8 @@ Access Control:
 
 ### Prerequisites
 
+- **[Nginx Proxy Manager](https://nginxproxymanager.com/)** (must be running — this app depends on it)
 - Docker + Docker Compose
-- Nginx Proxy Manager (running)
 - [Clerk](https://clerk.com/) account (free tier works)
 
 ### 1. Clone and configure
@@ -110,7 +130,7 @@ Edit `.env`:
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
 
-# NPM API credentials (an NPM admin user)
+# NPM API credentials (an admin user in your Nginx Proxy Manager instance)
 NPM_API_EMAIL=admin@example.com
 NPM_API_PASSWORD=your-npm-password
 NPM_API_URL=http://nginx-proxy-manager:81/api
@@ -122,11 +142,11 @@ NPM_API_URL=http://nginx-proxy-manager:81/api
 docker compose up -d --build
 ```
 
-The gateway runs on port 3100, accessible only via NPM reverse proxy.
+The gateway runs on port 3100. It must be on the same Docker network as your Nginx Proxy Manager container.
 
 ### 3. Set up NPM proxy
 
-In NPM, create a proxy host pointing to the gateway:
+In Nginx Proxy Manager, create a proxy host pointing to the gateway:
 
 - **Domain**: `auth.yourdomain.com`
 - **Forward Host**: `npm-auth-gateway` (container name)
@@ -141,19 +161,11 @@ In Clerk Dashboard, find your user and set Public Metadata:
 {"aclIds": [], "isAdmin": true}
 ```
 
-Or use the legacy format: `{"groups": ["admin"]}`
-
 After that, all user management happens from the app — no more Clerk Dashboard needed.
 
-## Tech Stack
-
-- **Next.js 16** / React 19 / TypeScript
-- **Clerk** for auth (swappable for any OIDC provider)
-- **shadcn/ui** + Tailwind CSS for components
-- **Docker** (multi-stage build, Alpine)
-- **NPM REST API** for all data operations
-
 ## NPM API Endpoints Used
+
+This app uses [Nginx Proxy Manager's REST API](https://github.com/NginxProxyManager/nginx-proxy-manager) exclusively:
 
 | Endpoint | Purpose |
 |---|---|
@@ -165,13 +177,25 @@ After that, all user management happens from the app — no more Clerk Dashboard
 | `POST /api/nginx/access-lists` | Create access list |
 | `GET /api/nginx/certificates` | List SSL certificates |
 
+## Tech Stack
+
+- **Next.js 16** / React 19 / TypeScript
+- **Clerk** for auth (swappable for any OIDC provider)
+- **shadcn/ui** + Tailwind CSS for components
+- **Docker** (multi-stage build, Alpine)
+- **[Nginx Proxy Manager](https://nginxproxymanager.com/) REST API** for all data operations
+
 ## Screenshots
 
-*Coming soon — the app is in production use managing 90+ proxy hosts.*
+*Coming soon — the app is in production use managing 90+ proxy hosts behind Nginx Proxy Manager.*
+
+## Acknowledgments
+
+This project exists because of [Nginx Proxy Manager](https://nginxproxymanager.com/) by [@jc21](https://github.com/jc21). NPM made self-hosting accessible — this app just adds user management on top of the excellent foundation NPM provides.
 
 ## Contributing
 
-Issues and PRs welcome. This is a companion tool for NPM, not a fork — it respects NPM's architecture and authority.
+Issues and PRs welcome. This is a companion tool for [Nginx Proxy Manager](https://nginxproxymanager.com/), not a fork — it respects NPM's architecture and authority.
 
 ## License
 
@@ -179,4 +203,4 @@ MIT
 
 ---
 
-Built by [Mark Carpenter](https://aireinvestor.com) — solving the "just add their IP" problem for NPM users everywhere.
+Built by [Mark Carpenter](https://aireinvestor.com) — solving the "just add their IP" problem for [Nginx Proxy Manager](https://nginxproxymanager.com/) users everywhere.
