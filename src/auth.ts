@@ -7,6 +7,7 @@ type OidcProfile = {
   name?: string | null;
   preferred_username?: string | null;
   groups?: unknown;
+  [key: string]: unknown;
 };
 
 function normalizeGroups(groups: unknown): string[] | undefined {
@@ -21,6 +22,10 @@ function normalizeGroups(groups: unknown): string[] | undefined {
 
 function isOidcEnabled() {
   return process.env.AUTH_PROVIDER?.trim().toLowerCase() === "oidc";
+}
+
+function getGroupsClaimName() {
+  return process.env.OIDC_GROUPS_CLAIM?.trim() || "groups";
 }
 
 function getOidcProvider(): OIDCConfig<OidcProfile> {
@@ -52,7 +57,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: isOidcEnabled() ? [getOidcProvider()] : [],
   callbacks: {
     jwt({ token, profile }) {
-      const groups = normalizeGroups((profile as OidcProfile | undefined)?.groups);
+      const groups = normalizeGroups(
+        (profile as OidcProfile | undefined)?.[getGroupsClaimName()],
+      );
       if (groups) token.groups = groups;
       return token;
     },

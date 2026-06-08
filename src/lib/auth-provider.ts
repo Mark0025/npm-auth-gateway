@@ -6,6 +6,7 @@ import {
   getStoredUser,
   listStoredUsers,
   setStoredUserAccess,
+  syncStoredUserFromLogin,
   upsertStoredUser,
 } from "@/lib/user-store";
 
@@ -36,10 +37,38 @@ function normalizeGroups(groups: unknown): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
-function getOidcAccess(groups: string[] | undefined): UserAccess {
+function parseCsv(value: string | undefined) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getAdminGroups() {
+  return parseCsv(process.env.ADMIN_GROUPS);
+}
+
+function getAclGroupMap() {
+  return parseCsv(process.env.ACL_GROUP_MAP)
+    .map((entry) => {
+      const [groupName, aclIdValue] = entry.split(":").map((item) => item.trim());
+      const aclId = Number(aclIdValue);
+      if (!groupName || Number.isNaN(aclId)) return null;
+      return { groupName, aclId };
+    })
+    .filter((entry): entry is { groupName: string; aclId: number } => entry !== null);
+}
+
+function getDerivedGroupAccess(groups: string[] | undefined): UserAccess {
+  const aclIds = getAclGroupMap()
+    .filter((entry) => groups?.includes(entry.groupName))
+    .map((entry) => entry.aclId);
+
+  const isAdmin = getAdminGroups().some((group) => groups?.includes(group));
+
   return {
-    aclIds: [],
-    isAdmin: groups?.includes("admin") ?? false,
+    aclIds: [...new Set(aclIds)],
+    isAdmin,
   };
 }
 
@@ -104,30 +133,38 @@ async function getClerkUserIdentity(userId: string): Promise<AuthUser | null> {
   return authUser;
 }
 
-async function seedStoredUser(
+async function syncCurrentUserRecord(
   user: AuthUser,
-  fallbackAccess: UserAccess,
+  derivedAccess: UserAccess,
 ): Promise<UserAccess> {
-  const stored = await getStoredUser(user.id);
-  if (stored) {
-    await upsertStoredUser({
+  const record = await syncStoredUserFromLogin(
+    {
       id: user.id,
       email: user.email,
       name: user.name,
-      seenAt: new Date().toISOString(),
-    });
-    return { aclIds: stored.aclIds, isAdmin: stored.isAdmin };
-  }
+    },
+    derivedAccess,
+  );
 
-  const record = await upsertStoredUser({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    aclIds: fallbackAccess.aclIds,
-    isAdmin: fallbackAccess.isAdmin,
-    seenAt: new Date().toISOString(),
-  });
   return { aclIds: record.aclIds, isAdmin: record.isAdmin };
+}
+
+async function syncClerkUserRecord(user: {
+  id: string;
+  emailAddresses?: Array<{ emailAddress?: string | null }>;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+  publicMetadata?: Record<string, unknown> | null;
+}) {
+  return syncCurrentUserRecord(
+    {
+      id: user.id,
+      email: getPrimaryEmail(user),
+      name: getDisplayName(user),
+    },
+    parseUserAccess(user.publicMetadata),
+  );
 }
 
 async function getUserIdentity(userId: string): Promise<AuthUser | null> {
@@ -168,7 +205,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       name: session.user.name,
       groups: normalizeGroups(session.user.groups),
     };
-    await seedStoredUser(currentUser, getOidcAccess(currentUser.groups));
+
+    await syncCurrentUserRecord(currentUser, getDerivedGroupAccess(currentUser.groups));
     return currentUser;
   }
 
@@ -177,8 +215,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const { aclIds, isAdmin, lastSignInAt: _lastSignInAt, ...authUser } = mapUser(user);
-  await seedStoredUser(authUser, { aclIds, isAdmin });
+  const { aclIds: _aclIds, isAdmin: _isAdmin, lastSignInAt: _lastSignInAt, ...authUser } =
+    mapUser(user);
+  await syncClerkUserRecord(user);
   return authUser;
 }
 
@@ -198,30 +237,24 @@ export async function requireAdmin(): Promise<AuthUser> {
 
 export async function getUserAccess(userId: string): Promise<UserAccess> {
   const stored = await getStoredUser(userId);
-  if (stored) {
+  if (stored?.hasLocalOverride) {
     return { aclIds: stored.aclIds, isAdmin: stored.isAdmin };
   }
 
   if (getAuthProvider() === "oidc") {
     const user = await getCurrentUser();
-    if (!user || user.id !== userId) return { aclIds: [], isAdmin: false };
+    if (!user || user.id !== userId) {
+      return stored
+        ? { aclIds: stored.aclIds, isAdmin: stored.isAdmin }
+        : { aclIds: [], isAdmin: false };
+    }
 
-    const access = getOidcAccess(user.groups);
-    await seedStoredUser(user, access);
-    return access;
+    return syncCurrentUserRecord(user, getDerivedGroupAccess(user.groups));
   }
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const access = parseUserAccess(user.publicMetadata);
-  await upsertStoredUser({
-    id: user.id,
-    email: getPrimaryEmail(user),
-    name: getDisplayName(user),
-    aclIds: access.aclIds,
-    isAdmin: access.isAdmin,
-  });
-  return access;
+  return syncClerkUserRecord(user);
 }
 
 export async function setUserAccess(

@@ -12,6 +12,7 @@ export type StoredUser = {
   isAdmin: boolean;
   firstSeenAt: string;
   lastSeenAt: string;
+  hasLocalOverride?: boolean;
 };
 
 type UpsertStoredUserInput = {
@@ -142,6 +143,50 @@ export async function upsertStoredUser({
       isAdmin: isAdmin ?? false,
       firstSeenAt: now,
       lastSeenAt: now,
+      hasLocalOverride: false,
+    };
+    users.push(created);
+    return created;
+  });
+}
+
+export async function syncStoredUserFromLogin(
+  identity: {
+    id: string;
+    email: string;
+    name?: string | null;
+  },
+  derivedAccess: {
+    aclIds: number[];
+    isAdmin: boolean;
+  },
+): Promise<StoredUser> {
+  return updateStore((users) => {
+    const now = new Date().toISOString();
+    const existing = users.find((user) => user.id === identity.id);
+
+    if (existing) {
+      existing.email = identity.email;
+      existing.name = identity.name ?? existing.name;
+      existing.lastSeenAt = now;
+
+      if (!existing.hasLocalOverride) {
+        existing.aclIds = derivedAccess.aclIds;
+        existing.isAdmin = derivedAccess.isAdmin;
+      }
+
+      return existing;
+    }
+
+    const created: StoredUser = {
+      id: identity.id,
+      email: identity.email,
+      name: identity.name ?? undefined,
+      aclIds: derivedAccess.aclIds,
+      isAdmin: derivedAccess.isAdmin,
+      firstSeenAt: now,
+      lastSeenAt: now,
+      hasLocalOverride: false,
     };
     users.push(created);
     return created;
@@ -167,6 +212,7 @@ export async function setStoredUserAccess(
       existing.aclIds = aclIds;
       existing.isAdmin = isAdmin;
       existing.lastSeenAt = now;
+      existing.hasLocalOverride = true;
       return existing;
     }
 
@@ -178,6 +224,7 @@ export async function setStoredUserAccess(
       isAdmin,
       firstSeenAt: now,
       lastSeenAt: now,
+      hasLocalOverride: true,
     };
     users.push(created);
     return created;
