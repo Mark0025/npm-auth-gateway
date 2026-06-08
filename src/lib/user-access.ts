@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * User access data stored in Clerk publicMetadata.
+ * Effective user access data used across auth providers.
  * aclIds = NPM access list IDs the user is assigned to.
  * isAdmin = full access to all services + admin UI.
  */
@@ -11,7 +11,7 @@ export type UserAccess = {
 };
 
 /**
- * Extract access data from a Clerk user's publicMetadata.
+ * Extract access data from a Clerk metadata object.
  * Handles both new format { aclIds, isAdmin } and legacy { groups }.
  */
 export function getUserAccess(

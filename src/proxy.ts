@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
-import { getUserAccess } from "@/lib/user-access";
 
 function isPublicRoute(pathname: string) {
   return (
@@ -48,7 +47,8 @@ async function oidcProxy(req: NextRequest, event: NextFetchEvent) {
 }
 
 async function clerkProxy(req: NextRequest, event: NextFetchEvent) {
-  const { clerkMiddleware, clerkClient } = await import("@clerk/nextjs/server");
+  const { clerkMiddleware } = await import("@clerk/nextjs/server");
+  const { getUserAccess: getEffectiveUserAccess } = await import("@/lib/auth-provider");
 
   const handler = clerkMiddleware(async (clerkAuth, request) => {
     const { pathname } = request.nextUrl;
@@ -57,9 +57,7 @@ async function clerkProxy(req: NextRequest, event: NextFetchEvent) {
     const { userId } = await clerkAuth.protect();
 
     if (isAdminRoute(pathname)) {
-      const client = await clerkClient();
-      const user = await client.users.getUser(userId);
-      const access = getUserAccess(user.publicMetadata);
+      const access = await getEffectiveUserAccess(userId);
 
       if (!access.isAdmin) {
         return NextResponse.redirect(new URL("/dashboard", request.url));

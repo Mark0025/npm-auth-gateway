@@ -60,7 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const groups = normalizeGroups(
         (profile as OidcProfile | undefined)?.[getGroupsClaimName()],
       );
-      if (groups) token.groups = groups;
+      token.groups = groups;
       return token;
     },
     session({ session, token }) {

@@ -82,10 +82,6 @@ export function getAuthProvider(): AuthProvider {
   return parseAuthProvider(process.env.AUTH_PROVIDER);
 }
 
-export function supportsUserManagement() {
-  return true;
-}
-
 export function supportsUserInvitation() {
   return getAuthProvider() === "clerk";
 }
