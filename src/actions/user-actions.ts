@@ -1,20 +1,12 @@
 "use server";
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { getUserAccess } from "@/lib/user-access";
-
-async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const access = getUserAccess(user.publicMetadata);
-
-  if (!access.isAdmin) throw new Error("Admin access required");
-  return userId;
-}
+import {
+  createUser,
+  getUserAccess,
+  requireAdmin,
+  setUserAccess as persistUserAccess,
+} from "@/lib/auth-provider";
 
 /** Overwrite a user's ACL list and admin flag in Clerk metadata. */
 export async function setUserAccess(
@@ -24,10 +16,7 @@ export async function setUserAccess(
 ) {
   await requireAdmin();
 
-  const client = await clerkClient();
-  await client.users.updateUserMetadata(targetUserId, {
-    publicMetadata: { aclIds, isAdmin },
-  });
+  await persistUserAccess(targetUserId, aclIds, isAdmin);
 
   revalidatePath("/users");
   revalidatePath(`/users/${targetUserId}`);
@@ -42,17 +31,13 @@ export async function toggleUserAcl(
 ) {
   await requireAdmin();
 
-  const client = await clerkClient();
-  const user = await client.users.getUser(targetUserId);
-  const access = getUserAccess(user.publicMetadata);
+  const access = await getUserAccess(targetUserId);
 
   const newAclIds = enabled
     ? [...new Set([...access.aclIds, aclId])]
     : access.aclIds.filter((id) => id !== aclId);
 
-  await client.users.updateUserMetadata(targetUserId, {
-    publicMetadata: { aclIds: newAclIds, isAdmin: access.isAdmin },
-  });
+  await persistUserAccess(targetUserId, newAclIds, access.isAdmin);
 
   revalidatePath("/users");
   revalidatePath(`/users/${targetUserId}`);
@@ -65,13 +50,9 @@ export async function toggleUserAdmin(
 ) {
   await requireAdmin();
 
-  const client = await clerkClient();
-  const user = await client.users.getUser(targetUserId);
-  const access = getUserAccess(user.publicMetadata);
+  const access = await getUserAccess(targetUserId);
 
-  await client.users.updateUserMetadata(targetUserId, {
-    publicMetadata: { aclIds: access.aclIds, isAdmin },
-  });
+  await persistUserAccess(targetUserId, access.aclIds, isAdmin);
 
   revalidatePath("/users");
   revalidatePath(`/users/${targetUserId}`);
@@ -85,14 +66,8 @@ export async function inviteUser(email: string) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) throw new Error("Invalid email address");
 
-  const client = await clerkClient();
-
   try {
-    await client.users.createUser({
-      emailAddress: [email],
-      publicMetadata: { aclIds: [], isAdmin: false },
-      skipPasswordRequirement: true,
-    });
+    await createUser(email);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     if (msg.includes("already exists") || msg.includes("taken")) {

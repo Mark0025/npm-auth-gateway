@@ -1,21 +1,60 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
+import { signIn, signOut } from "@/auth";
+import { getAuthProvider, getCurrentUser, getUserAccess } from "@/lib/auth-provider";
 import Link from "next/link";
+
+async function AuthControls() {
+  const provider = getAuthProvider();
+
+  if (provider === "clerk") {
+    return <UserButton />;
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return (
+      <form
+        action={async () => {
+          "use server";
+          await signIn("oidc", { redirectTo: "/dashboard" });
+        }}
+      >
+        <button
+          type="submit"
+          className="rounded-md border px-3 py-1 text-sm hover:bg-muted"
+        >
+          Sign in
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <form
+      action={async () => {
+        "use server";
+        await signOut({ redirectTo: "/login" });
+      }}
+    >
+      <button
+        type="submit"
+        className="rounded-md border px-3 py-1 text-sm hover:bg-muted"
+      >
+        Sign out
+      </button>
+    </form>
+  );
+}
 
 /** Top navigation bar with role-aware links and Clerk user button */
 export async function NavBar() {
   let isAdmin = false;
 
   try {
-    const { userId } = await auth();
-    if (userId) {
-      const client = await clerkClient();
-      const user = await client.users.getUser(userId);
-      const meta = user.publicMetadata as Record<string, unknown> | undefined;
-      // Support both new { isAdmin } and legacy { groups: ["admin"] }
-      isAdmin =
-        (meta?.isAdmin as boolean | undefined) ??
-        ((meta?.groups as string[] | undefined) ?? []).includes("admin");
+    const user = await getCurrentUser();
+    if (user) {
+      const access = await getUserAccess(user.id);
+      isAdmin = access.isAdmin;
     }
   } catch {
     // Auth not available (e.g. public route) — show default nav
@@ -70,7 +109,7 @@ export async function NavBar() {
           </Link>
         </div>
       </div>
-      <UserButton />
+      <AuthControls />
     </nav>
   );
 }

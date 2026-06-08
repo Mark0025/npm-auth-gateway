@@ -1,17 +1,18 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { NavBar } from "@/components/nav-bar";
-import { Badge } from "@/components/ui/badge";
 import { InviteUserForm } from "@/components/invite-user-form";
 import { SearchableUserTable } from "@/components/searchable-user-table";
+import { getUserCount, listUsers, supportsUserManagement } from "@/lib/auth-provider";
 import { getLoginLog } from "@/lib/login-log";
-import { getUserAccess } from "@/lib/user-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const client = await clerkClient();
-  const clerkUsers = await client.users.getUserList({ limit: 100 });
-  const loginLog = await getLoginLog();
+  const canManageUsers = supportsUserManagement();
+  const [authUsers, userCount, loginLog] = await Promise.all([
+    listUsers(),
+    getUserCount(),
+    getLoginLog(),
+  ]);
 
   // Aggregate login stats per user
   const loginsByUser = new Map<
@@ -29,21 +30,19 @@ export default async function UsersPage() {
   }
 
   // Prepare serializable user data for client component
-  const users = clerkUsers.data.map((user) => {
-    const email = user.emailAddresses[0]?.emailAddress ?? "no email";
-    const access = getUserAccess(user.publicMetadata);
+  const users = authUsers.map((user) => {
     const stats = loginsByUser.get(user.id);
 
     return {
       id: user.id,
-      email,
+      email: user.email,
       lastSignIn: user.lastSignInAt
         ? new Date(user.lastSignInAt).toLocaleDateString()
         : "Never",
       logins: stats?.count ?? 0,
       ips: stats?.ips.size ?? 0,
-      aclCount: access.aclIds.length,
-      isAdmin: access.isAdmin,
+      aclCount: user.aclIds.length,
+      isAdmin: user.isAdmin,
     };
   });
 
@@ -52,10 +51,17 @@ export default async function UsersPage() {
       <NavBar />
       <main className="p-6 max-w-7xl mx-auto space-y-6">
         <h1 className="text-2xl font-semibold">
-          Users ({clerkUsers.totalCount})
+          Users ({userCount})
         </h1>
 
-        <InviteUserForm />
+        {canManageUsers ? (
+          <InviteUserForm />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            OIDC mode exposes the current signed-in user, but user provisioning
+            and ACL management remain Clerk-only.
+          </p>
+        )}
 
         <SearchableUserTable users={users} />
       </main>

@@ -1,4 +1,3 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { NavBar } from "@/components/nav-bar";
 import {
   Card,
@@ -11,9 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { UserHostTable } from "@/components/user-host-table";
 import { RevokeAccessButton } from "@/components/revoke-access-button";
 import { AdminToggle } from "@/components/admin-toggle";
+import { listUsers, supportsUserManagement } from "@/lib/auth-provider";
 import { getLoginLog } from "@/lib/login-log";
 import { getAccessLists, getProxyHosts } from "@/lib/npm-api";
-import { getUserAccess } from "@/lib/user-access";
 import { categorizeHost } from "@/lib/categorize";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -26,14 +25,11 @@ export default async function UserDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: userId } = await params;
+  const canManageUsers = supportsUserManagement();
 
-  const client = await clerkClient();
-  let user;
-  try {
-    user = await client.users.getUser(userId);
-  } catch {
-    notFound();
-  }
+  const users = await listUsers();
+  const user = users.find((candidate) => candidate.id === userId);
+  if (!user) notFound();
 
   const [loginLog, accessLists, proxyHosts] = await Promise.all([
     getLoginLog(),
@@ -41,8 +37,8 @@ export default async function UserDetailPage({
     getProxyHosts(),
   ]);
 
-  const email = user.emailAddresses[0]?.emailAddress ?? "no email";
-  const access = getUserAccess(user.publicMetadata);
+  const email = user.email;
+  const access = { aclIds: user.aclIds, isAdmin: user.isAdmin };
 
   // Login history
   const userEntries = loginLog.filter((e) => e.userId === userId);
@@ -99,10 +95,12 @@ export default async function UserDetailPage({
             <h1 className="text-2xl font-semibold">{email}</h1>
             <p className="text-xs text-muted-foreground font-mono">{userId}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <AdminToggle userId={userId} isAdmin={access.isAdmin} />
-            <RevokeAccessButton userId={userId} />
-          </div>
+          {canManageUsers && (
+            <div className="flex items-center gap-2">
+              <AdminToggle userId={userId} isAdmin={access.isAdmin} />
+              <RevokeAccessButton userId={userId} />
+            </div>
+          )}
         </div>
 
         {/* Stats row */}
@@ -153,27 +151,38 @@ export default async function UserDetailPage({
         )}
 
         {/* Host table with checkboxes */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">
-              Manage Host Access
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Check hosts to grant access. On login, this user&apos;s IP is
-              auto-added to the access lists protecting checked hosts.
-              Public hosts are accessible to everyone.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <UserHostTable
-              hosts={hostsWithCategory}
-              userAclIds={access.aclIds}
-              userId={userId}
-              isAdmin={access.isAdmin}
-              aclHostMap={aclHostMap}
-            />
-          </CardContent>
-        </Card>
+        {canManageUsers ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">
+                Manage Host Access
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Check hosts to grant access. On login, this user&apos;s IP is
+                auto-added to the access lists protecting checked hosts.
+                Public hosts are accessible to everyone.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <UserHostTable
+                hosts={hostsWithCategory}
+                userAclIds={access.aclIds}
+                userId={userId}
+                isAdmin={access.isAdmin}
+                aclHostMap={aclHostMap}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">OIDC User Access</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Host assignment and role management are not available in OIDC mode.
+            </CardContent>
+          </Card>
+        )}
       </main>
     </>
   );

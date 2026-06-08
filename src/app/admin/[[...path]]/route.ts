@@ -1,11 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth-provider";
 
 const NPM_INTERNAL = (process.env.NPM_API_URL ?? "http://nginx-proxy-manager:81/api").replace(/\/api\/?$/, "");
 
 async function proxyToNPM(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) {
+  try {
+    await requireAdmin();
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

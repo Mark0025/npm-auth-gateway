@@ -1,4 +1,3 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,12 +6,14 @@ import { NavBar } from "@/components/nav-bar";
 import { getProxyHosts, getAccessLists, getCertificates, type ProxyHost } from "@/lib/npm-api";
 import { appendLoginLog } from "@/lib/login-log";
 import { autoAddIp } from "@/lib/auto-ip";
-import { getUserAccess, type UserAccess } from "@/lib/user-access";
+import { getCurrentUser, getUserAccess } from "@/lib/auth-provider";
+import type { UserAccess } from "@/lib/user-access";
 import { categorizeHost, CATEGORY_ORDER } from "@/lib/categorize";
 import Link from "next/link";
 
 export default async function Dashboard() {
-  const { userId } = await auth();
+  const user = await getCurrentUser();
+  const userId = user?.id ?? null;
   const headersList = await headers();
   const ip =
     headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -25,12 +26,10 @@ export default async function Dashboard() {
   // Get user's access config
   let access: UserAccess = { aclIds: [], isAdmin: false };
   let userEmail = "";
-  if (userId) {
+  if (user) {
     try {
-      const client = await clerkClient();
-      const user = await client.users.getUser(userId);
-      access = getUserAccess(user.publicMetadata);
-      userEmail = user.emailAddresses[0]?.emailAddress ?? "";
+      access = await getUserAccess(user.id);
+      userEmail = user.email;
     } catch {
       // Clerk API unavailable
     }

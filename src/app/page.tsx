@@ -1,13 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth-provider";
 import { redirect } from "next/navigation";
 
 export default async function Home() {
-  const { userId } = await auth();
-  
-  if (userId) {
+  const user = await getCurrentUser();
+
+  if (user) {
     redirect("/dashboard");
   }
 
-  // Not signed in — redirect to Clerk sign-in
   redirect("/login");
 }

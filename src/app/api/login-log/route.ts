@@ -1,12 +1,9 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
+import { requireUser } from "@/lib/auth-provider";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await requireUser();
 
   try {
     const data = await readFile("/data/login-logs/logins.jsonl", "utf-8");

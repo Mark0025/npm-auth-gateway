@@ -4,3 +4,6 @@ node_modules/
 .env.local
 *.log
 .DS_Store
+
+# clerk configuration
+/.clerk/

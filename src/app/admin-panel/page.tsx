@@ -1,4 +1,3 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { NavBar } from "@/components/nav-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +14,7 @@ import { AddIpForm } from "@/components/add-ip-form";
 import { RemoveIpButton } from "@/components/remove-ip-button";
 import { CreateAclForm } from "@/components/create-acl-form";
 import { ProxyHostTable } from "@/components/proxy-host-table";
+import { listUsers, supportsUserManagement } from "@/lib/auth-provider";
 import { getProxyHosts, getAccessLists } from "@/lib/npm-api";
 import { categorizeHost, CATEGORY_ORDER } from "@/lib/categorize";
 import { getLoginLog } from "@/lib/login-log";
@@ -24,6 +24,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPanelPage() {
+  const canManageUsers = supportsUserManagement();
   const headersList = await headers();
   const currentIp =
     headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -31,11 +32,11 @@ export default async function AdminPanelPage() {
     "unknown";
 
   // Fetch all data in parallel
-  const [proxyHosts, accessLists, loginLog, clerkUsers] = await Promise.all([
+  const [proxyHosts, accessLists, loginLog, authUsers] = await Promise.all([
     getProxyHosts(),
     getAccessLists(),
     getLoginLog(),
-    clerkClient().then((c) => c.users.getUserList({ limit: 100 })),
+    listUsers(),
   ]);
 
   // Build maps
@@ -85,8 +86,13 @@ export default async function AdminPanelPage() {
         {/* ── Section 1: Clerk Users ── */}
         <section className="space-y-4">
           <h2 className="text-lg font-medium">
-            Clerk Users ({clerkUsers.totalCount})
+            Users ({authUsers.length})
           </h2>
+          {!canManageUsers && (
+            <p className="text-sm text-muted-foreground">
+              OIDC mode is read-only here. Clerk-specific provisioning controls are unavailable.
+            </p>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -100,13 +106,11 @@ export default async function AdminPanelPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clerkUsers.data.map((user) => {
-                const email =
-                  user.emailAddresses[0]?.emailAddress ?? "no email";
+              {authUsers.map((user) => {
+                const email = user.email;
                 const stats = loginsByUser.get(user.id);
-                const meta = user.publicMetadata as Record<string, unknown> | undefined;
-                const isUserAdmin = (meta?.isAdmin as boolean | undefined) ?? ((meta?.groups as string[] | undefined) ?? []).includes("admin");
-                const aclCount = ((meta?.aclIds as number[] | undefined) ?? []).length;
+                const isUserAdmin = user.isAdmin;
+                const aclCount = user.aclIds.length;
 
                 return (
                   <TableRow key={user.id}>
