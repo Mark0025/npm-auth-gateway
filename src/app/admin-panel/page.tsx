@@ -14,7 +14,7 @@ import { AddIpForm } from "@/components/add-ip-form";
 import { RemoveIpButton } from "@/components/remove-ip-button";
 import { CreateAclForm } from "@/components/create-acl-form";
 import { ProxyHostTable } from "@/components/proxy-host-table";
-import { listUsers, supportsUserManagement } from "@/lib/auth-provider";
+import { listUsers } from "@/lib/auth-provider";
 import { getProxyHosts, getAccessLists } from "@/lib/npm-api";
 import { categorizeHost, CATEGORY_ORDER } from "@/lib/categorize";
 import { getLoginLog } from "@/lib/login-log";
@@ -24,7 +24,6 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPanelPage() {
-  const canManageUsers = supportsUserManagement();
   const headersList = await headers();
   const currentIp =
     headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -88,11 +87,6 @@ export default async function AdminPanelPage() {
           <h2 className="text-lg font-medium">
             Users ({authUsers.length})
           </h2>
-          {!canManageUsers && (
-            <p className="text-sm text-muted-foreground">
-              OIDC mode is read-only here. Clerk-specific provisioning controls are unavailable.
-            </p>
-          )}
           <Table>
             <TableHeader>
               <TableRow>

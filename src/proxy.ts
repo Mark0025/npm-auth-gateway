@@ -5,6 +5,7 @@ function isPublicRoute(pathname: string) {
   return (
     pathname === "/" ||
     pathname === "/login" ||
+    pathname === "/api/oidc-login" ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname.startsWith("/api/auth")
@@ -15,14 +16,11 @@ function isAdminRoute(pathname: string) {
   return pathname.startsWith("/users") || pathname.startsWith("/admin-panel");
 }
 
-function isAdminGroup(groups: string[] | undefined) {
-  return groups?.includes("admin") ?? false;
-}
-
 async function oidcProxy(req: NextRequest, event: NextFetchEvent) {
   const { auth } = await import("@/auth");
+  const { getUserAccess: getStoredAccess } = await import("@/lib/auth-provider");
 
-  const handler = auth((authedReq) => {
+  const handler = auth(async (authedReq) => {
     const { pathname } = authedReq.nextUrl;
 
     if (isPublicRoute(pathname)) return NextResponse.next();
@@ -31,8 +29,11 @@ async function oidcProxy(req: NextRequest, event: NextFetchEvent) {
       return NextResponse.redirect(new URL("/login", authedReq.url));
     }
 
-    if (isAdminRoute(pathname) && !isAdminGroup(authedReq.auth.user.groups)) {
-      return NextResponse.redirect(new URL("/dashboard", authedReq.url));
+    if (isAdminRoute(pathname)) {
+      const access = await getStoredAccess(authedReq.auth.user.id);
+      if (!access.isAdmin) {
+        return NextResponse.redirect(new URL("/dashboard", authedReq.url));
+      }
     }
 
     return NextResponse.next();

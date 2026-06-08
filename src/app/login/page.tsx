@@ -11,7 +11,7 @@ export default async function LoginPage() {
   }
 
   if (provider === "oidc") {
-    redirect("/api/auth/signin/oidc?callbackUrl=%2Fdashboard");
+    redirect("/api/oidc-login");
   }
 
   return (

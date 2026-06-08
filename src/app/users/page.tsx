@@ -1,13 +1,17 @@
 import { NavBar } from "@/components/nav-bar";
 import { InviteUserForm } from "@/components/invite-user-form";
 import { SearchableUserTable } from "@/components/searchable-user-table";
-import { getUserCount, listUsers, supportsUserManagement } from "@/lib/auth-provider";
+import {
+  getUserCount,
+  listUsers,
+  supportsUserInvitation,
+} from "@/lib/auth-provider";
 import { getLoginLog } from "@/lib/login-log";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const canManageUsers = supportsUserManagement();
+  const canInviteUsers = supportsUserInvitation();
   const [authUsers, userCount, loginLog] = await Promise.all([
     listUsers(),
     getUserCount(),
@@ -54,12 +58,12 @@ export default async function UsersPage() {
           Users ({userCount})
         </h1>
 
-        {canManageUsers ? (
+        {canInviteUsers ? (
           <InviteUserForm />
         ) : (
           <p className="text-sm text-muted-foreground">
-            OIDC mode exposes the current signed-in user, but user provisioning
-            and ACL management remain Clerk-only.
+            Users appear here after their first successful sign-in. Invitations
+            remain Clerk-only.
           </p>
         )}
 

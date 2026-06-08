@@ -8,7 +8,7 @@ import {
   setUserAccess as persistUserAccess,
 } from "@/lib/auth-provider";
 
-/** Overwrite a user's ACL list and admin flag in Clerk metadata. */
+/** Overwrite a user's ACL list and admin flag in the local user store. */
 export async function setUserAccess(
   targetUserId: string,
   aclIds: number[],
@@ -59,7 +59,7 @@ export async function toggleUserAdmin(
   revalidatePath("/admin-panel");
 }
 
-/** Create a new Clerk user by email with default (no-access) metadata. */
+/** Create a new Clerk user by email with default (no-access) access. */
 export async function inviteUser(email: string) {
   await requireAdmin();
 
