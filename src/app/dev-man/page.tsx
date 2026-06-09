@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { getUserCount } from "@/lib/auth-provider";
 import { getProxyHosts, getAccessLists, getCertificates } from "@/lib/npm-api";
-import { categorizeHost, groupHosts, CATEGORY_ORDER } from "@/lib/categorize";
+import { groupHosts, CATEGORY_ORDER } from "@/lib/categorize";
 import {
   scanServerActions,
   scanNpmApiFunctions,

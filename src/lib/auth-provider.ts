@@ -124,9 +124,13 @@ function mapUser(user: {
 async function getClerkUserIdentity(userId: string): Promise<AuthUser | null> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const { aclIds: _aclIds, isAdmin: _isAdmin, lastSignInAt: _lastSignInAt, ...authUser } =
-    mapUser(user);
-  return authUser;
+  const mappedUser = mapUser(user);
+
+  return {
+    id: mappedUser.id,
+    email: mappedUser.email,
+    name: mappedUser.name,
+  };
 }
 
 async function syncCurrentUserRecord(
@@ -211,10 +215,13 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const { aclIds: _aclIds, isAdmin: _isAdmin, lastSignInAt: _lastSignInAt, ...authUser } =
-    mapUser(user);
+  const mappedUser = mapUser(user);
   await syncClerkUserRecord(user);
-  return authUser;
+  return {
+    id: mappedUser.id,
+    email: mappedUser.email,
+    name: mappedUser.name,
+  };
 }
 
 export async function requireUser(): Promise<AuthUser> {

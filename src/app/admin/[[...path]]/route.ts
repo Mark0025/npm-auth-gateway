@@ -41,7 +41,7 @@ async function proxyToNPM(req: NextRequest) {
       status: response.status,
       headers: responseHeaders,
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Failed to reach NPM" }, { status: 502 });
   }
 }
