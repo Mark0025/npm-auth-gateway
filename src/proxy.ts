@@ -4,6 +4,7 @@ function isPublicRoute(pathname: string) {
   return (
     pathname === "/" ||
     pathname === "/login" ||
+    pathname === "/signed-out" ||
     pathname === "/api/oidc-login" ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||

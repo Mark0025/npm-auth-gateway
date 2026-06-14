@@ -33,7 +33,7 @@ async function AuthControls() {
     <form
       action={async () => {
         "use server";
-        await signOut({ redirectTo: "/login" });
+        await signOut({ redirectTo: "/signed-out" });
       }}
     >
       <button

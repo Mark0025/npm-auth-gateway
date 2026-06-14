@@ -17,7 +17,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
     "next": "^16.2.7",
-    "next-auth": "^5.0.0-beta.31",
+    "next-auth": "5.0.0-beta.31",
     "postcss": "^8.5.15",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -37,12 +37,5 @@
   },
   "overrides": {
     "postcss": "^8.5.15"
-  },
-  "allowScripts": {
-    "@clerk/shared@4.15.0": true,
-    "@clerk/shared@3.47.7": true,
-    "msw@2.12.10": true,
-    "sharp@0.34.5": true,
-    "unrs-resolver@1.12.2": true
   }
 }

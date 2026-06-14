@@ -36,6 +36,9 @@ function getOidcProvider(): OIDCConfig<OidcProfile> {
     issuer: process.env.OIDC_ISSUER ?? "https://invalid.local",
     clientId: process.env.OIDC_CLIENT_ID ?? "",
     clientSecret: process.env.OIDC_CLIENT_SECRET ?? "",
+    authorization: {
+      params: { scope: `openid profile email ${getGroupsClaimName()}` },
+    },
     profile(profile) {
       return {
         id: String(profile.sub ?? ""),
@@ -57,10 +60,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: isOidcEnabled() ? [getOidcProvider()] : [],
   callbacks: {
     jwt({ token, profile }) {
-      const groups = normalizeGroups(
-        (profile as OidcProfile | undefined)?.[getGroupsClaimName()],
-      );
-      token.groups = groups;
+      // `profile` is only present on the initial sign-in (token exchange).
+      // On subsequent calls it is undefined — only update groups when we
+      // actually have a fresh profile, otherwise we'd wipe the stored value.
+      if (profile) {
+        token.groups = normalizeGroups(
+          (profile as OidcProfile)[getGroupsClaimName()],
+        );
+      }
       return token;
     },
     session({ session, token }) {
