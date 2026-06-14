@@ -4,7 +4,7 @@ import { SearchableProxyTable } from "@/components/searchable-proxy-table";
 import { CategoryFilter } from "@/components/category-filter";
 import { RefreshButton } from "@/components/refresh-button";
 import { getProxyHosts } from "@/lib/npm-api";
-import { categorizeHost, CATEGORY_ORDER, type Category } from "@/lib/categorize";
+import { categorizeHost } from "@/lib/categorize";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";

@@ -3,6 +3,7 @@ services:
     build:
       context: .
       args:
+        - AUTH_PROVIDER=${AUTH_PROVIDER}
         - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     container_name: npm-auth-gateway
     restart: unless-stopped

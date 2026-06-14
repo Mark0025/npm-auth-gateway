@@ -1,11 +1,16 @@
 # Full stack: Nginx Proxy Manager + Auth Gateway
 # Use this if you don't have NPM running yet.
 #
-# 1. cp .env.example .env  (fill in Clerk keys + NPM admin credentials)
-# 2. docker compose -f docker-compose.full.yml up -d
-# 3. Go to http://localhost:81 to set up NPM (default: admin@example.com / changeme)
-# 4. Create an NPM admin user matching your .env NPM_API_EMAIL/PASSWORD
-# 5. Create a proxy host for the auth gateway (see README)
+# 1. cp .env.example .env
+# 2. Choose AUTH_PROVIDER=clerk or AUTH_PROVIDER=oidc
+# 3. Fill in the matching auth variables plus NPM admin credentials
+# 4. For OIDC, register the callback URL:
+#    http://localhost:3100/api/auth/callback/oidc
+#    or your public HTTPS URL in production
+# 5. docker compose -f docker-compose.full.yml up -d --build
+# 6. Go to http://localhost:81 to set up NPM (default: admin@example.com / changeme)
+# 7. Create an NPM admin user matching your .env NPM_API_EMAIL/PASSWORD
+# 8. Create a proxy host for the auth gateway (see README)
 
 services:
   # Nginx Proxy Manager — the boss
@@ -29,6 +34,7 @@ services:
     build:
       context: .
       args:
+        - AUTH_PROVIDER=${AUTH_PROVIDER}
         - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     container_name: npm-auth-gateway
     restart: unless-stopped

@@ -2,9 +2,9 @@ import { NavBar } from "@/components/nav-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { clerkClient } from "@clerk/nextjs/server";
+import { getUserCount } from "@/lib/auth-provider";
 import { getProxyHosts, getAccessLists, getCertificates } from "@/lib/npm-api";
-import { categorizeHost, groupHosts, CATEGORY_ORDER } from "@/lib/categorize";
+import { groupHosts, CATEGORY_ORDER } from "@/lib/categorize";
 import {
   scanServerActions,
   scanNpmApiFunctions,
@@ -21,7 +21,7 @@ export default async function DevManPage() {
   let proxyHosts: Awaited<ReturnType<typeof getProxyHosts>> = [];
   let accessLists: Awaited<ReturnType<typeof getAccessLists>> = [];
   let certificates: Awaited<ReturnType<typeof getCertificates>> = [];
-  let clerkUsers;
+  let userCount: number | null = null;
   let npmOnline = true;
 
   try {
@@ -35,11 +35,9 @@ export default async function DevManPage() {
   }
 
   try {
-    clerkUsers = await clerkClient().then((c) =>
-      c.users.getUserList({ limit: 100 })
-    );
+    userCount = await getUserCount();
   } catch {
-    clerkUsers = null;
+    userCount = null;
   }
 
   // Scan source files for functions, components, routes
@@ -156,7 +154,7 @@ export default async function DevManPage() {
               <Stat label="SSL Certs" value={certificates.length} sub={`${sslCount} hosts with SSL`} />
               <Stat label="Access Lists" value={accessLists.length} sub={`${proxyHosts.length - publicCount} hosts protected`} />
               <Stat label="Public Hosts" value={publicCount} sub="No ACL" />
-              <Stat label="Clerk Users" value={clerkUsers?.totalCount ?? "?"} sub="Registered" />
+              <Stat label="Users" value={userCount ?? "?"} sub="Registered" />
               <Stat label="NPM API" value={npmOnline ? "Online" : "Offline"} sub={npmOnline ? "Connected" : "Unreachable"} />
               <Stat label="Categories" value={CATEGORY_ORDER.length} sub="Auto-detected" />
               <Stat label="Server Actions" value={serverActions.length} sub="Scanned from src" />

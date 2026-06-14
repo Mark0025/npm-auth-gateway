@@ -1,7 +1,7 @@
 import "server-only";
 
 import { readdir, readFile } from "fs/promises";
-import { join, basename } from "path";
+import { join } from "path";
 
 type ScannedFunction = {
   name: string;

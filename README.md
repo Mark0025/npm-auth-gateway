@@ -88,7 +88,7 @@ Reads:  Server Component → npm-api.ts → NPM REST API → JSON
 Writes: Client Component → Server Action → auth check → NPM API → revalidate
 ```
 
-**No database.** NPM is the data store for all proxy and access list configuration. User metadata stored in auth provider. Zero state duplication.
+**No database.** NPM is the data store for proxy and access list configuration. This app keeps a small local user store for access assignments and login metadata.
 
 ### Security Model
 
@@ -100,7 +100,7 @@ Authentication:
     └─ Mutation? → auth check → NPM API call
 
 Access Control:
-  ✓ User metadata: { aclIds: [3, 7], isAdmin: true }
+  ✓ Local user store: { aclIds: [3, 7], isAdmin: true }
   ✓ Admin: full access, IP whitelisted on ALL ACLs
   ✓ Non-admin: only sees hosts in their assigned ACLs
   ✓ On login: auto-add IP to assigned ACLs only
@@ -113,7 +113,7 @@ Access Control:
 
 - **[Nginx Proxy Manager](https://nginxproxymanager.com/)** (must be running — this app depends on it)
 - Docker + Docker Compose
-- [Clerk](https://clerk.com/) account (free tier works)
+- [Clerk](https://clerk.com/) account or any OIDC provider such as authentik
 
 ### 1. Clone and configure
 
@@ -126,9 +126,22 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-# Clerk (get from clerk.com dashboard)
+# Choose one auth mode
+AUTH_PROVIDER=oidc
+
+# Clerk (used when AUTH_PROVIDER=clerk)
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
+
+# Auth.js / OIDC (used when AUTH_PROVIDER=oidc)
+AUTH_SECRET=replace-with-a-long-random-secret
+AUTH_URL=http://localhost:3100
+OIDC_ISSUER=https://auth.example.com/application/o/npm-auth-gateway/
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_GROUPS_CLAIM=groups
+ADMIN_GROUPS=npm-auth-admins,admins
+ACL_GROUP_MAP=media:3,infra:7,dev:8
 
 # NPM API credentials (an admin user in your Nginx Proxy Manager instance)
 NPM_API_EMAIL=admin@example.com
@@ -153,15 +166,58 @@ In Nginx Proxy Manager, create a proxy host pointing to the gateway:
 - **Forward Port**: `3100`
 - **SSL**: Enable with Let's Encrypt
 
-### 4. Bootstrap admin
+### 4. Access precedence
 
-In Clerk Dashboard, find your user and set Public Metadata:
+User access is resolved in this order:
 
-```json
-{"aclIds": [], "isAdmin": true}
+1. **Explicit local override** stored by this app
+2. **Group-derived access** from OIDC groups
+3. **Default no access**
+
+Local overrides are created when an admin changes a user's ACLs or admin flag in the UI. Users without a local override continue to refresh from OIDC groups on login.
+
+### 5. Optional OIDC group mapping
+
+The OIDC group mapping is optional. These environment variables control it:
+
+```env
+OIDC_GROUPS_CLAIM=groups
+ADMIN_GROUPS=npm-auth-admins,admins
+ACL_GROUP_MAP=media:3,infra:7,dev:8
 ```
 
-After that, all user management happens from the app — no more Clerk Dashboard needed.
+Behavior:
+
+- `OIDC_GROUPS_CLAIM` chooses which token/session claim contains group names.
+- If a user belongs to any group in `ADMIN_GROUPS`, they become admin.
+- `ACL_GROUP_MAP` maps `group-name:aclId` pairs to NPM access list IDs.
+- If no local override exists, group-derived access is applied on login.
+
+### 6. authentik example
+
+Example environment:
+
+```env
+AUTH_PROVIDER=oidc
+AUTH_URL=https://auth-gateway.example.com
+AUTH_SECRET=replace-with-a-long-random-secret
+OIDC_ISSUER=https://auth.example.com/application/o/npm-auth-gateway/
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_GROUPS_CLAIM=groups
+ADMIN_GROUPS=npm-auth-admins,admins
+ACL_GROUP_MAP=media:3,infra:7,dev:8
+```
+
+Example authentik setup:
+
+- Redirect URI: `https://auth-gateway.example.com/api/auth/callback/oidc`
+- Groups claim: `groups`
+- Example groups:
+  - `npm-auth-admins` grants admin access
+  - `media` grants ACL `3`
+  - `infra` grants ACL `7`
+  - `dev` grants ACL `8`
 
 ## NPM API Endpoints Used
 

@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORY_ORDER, type Category } from "@/lib/categorize";
+import { CATEGORY_ORDER } from "@/lib/categorize";
 import { useRouter, useSearchParams } from "next/navigation";
 
 /** Dropdown filter for proxy host categories with per-category counts */

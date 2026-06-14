@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { requireUser } from "@/lib/auth-provider";
 import {
   addIpToAccessList as npmAddIp,
   removeIpFromAccessList as npmRemoveIp,
@@ -17,9 +17,7 @@ function revalidateAll() {
 }
 
 async function requireAuth() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-  return userId;
+  return requireUser();
 }
 
 // --- Access List IP Management ---

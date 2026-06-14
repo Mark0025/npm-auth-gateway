@@ -1,4 +1,3 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { NavBar } from "@/components/nav-bar";
 import {
   Card,
@@ -7,13 +6,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { UserHostTable } from "@/components/user-host-table";
 import { RevokeAccessButton } from "@/components/revoke-access-button";
 import { AdminToggle } from "@/components/admin-toggle";
+import { listUsers } from "@/lib/auth-provider";
 import { getLoginLog } from "@/lib/login-log";
 import { getAccessLists, getProxyHosts } from "@/lib/npm-api";
-import { getUserAccess } from "@/lib/user-access";
 import { categorizeHost } from "@/lib/categorize";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -27,13 +25,9 @@ export default async function UserDetailPage({
 }) {
   const { id: userId } = await params;
 
-  const client = await clerkClient();
-  let user;
-  try {
-    user = await client.users.getUser(userId);
-  } catch {
-    notFound();
-  }
+  const users = await listUsers();
+  const user = users.find((candidate) => candidate.id === userId);
+  if (!user) notFound();
 
   const [loginLog, accessLists, proxyHosts] = await Promise.all([
     getLoginLog(),
@@ -41,8 +35,8 @@ export default async function UserDetailPage({
     getProxyHosts(),
   ]);
 
-  const email = user.emailAddresses[0]?.emailAddress ?? "no email";
-  const access = getUserAccess(user.publicMetadata);
+  const email = user.email;
+  const access = { aclIds: user.aclIds, isAdmin: user.isAdmin };
 
   // Login history
   const userEntries = loginLog.filter((e) => e.userId === userId);
