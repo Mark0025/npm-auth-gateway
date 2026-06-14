@@ -219,6 +219,8 @@ Example authentik setup:
   - `infra` grants ACL `7`
   - `dev` grants ACL `8`
 
+> **Sign-out behavior (OIDC):** Signing out performs a *local* logout — it ends the gateway session and shows a confirmation page, but leaves your OIDC provider's SSO session intact. This is intentional: other apps sharing that SSO session stay logged in, and signing back in is one click. Logout does **not** revoke a user's whitelisted IP — that's a separate admin action.
+
 ## NPM API Endpoints Used
 
 This app uses [Nginx Proxy Manager's REST API](https://github.com/NginxProxyManager/nginx-proxy-manager) exclusively:
@@ -236,7 +238,7 @@ This app uses [Nginx Proxy Manager's REST API](https://github.com/NginxProxyMana
 ## Tech Stack
 
 - **Next.js 16** / React 19 / TypeScript
-- **Clerk** for auth (swappable for any OIDC provider)
+- **Clerk** or **Auth.js (OIDC)** for auth — set `AUTH_PROVIDER=clerk|oidc`
 - **shadcn/ui** + Tailwind CSS for components
 - **Docker** (multi-stage build, Alpine)
 - **[Nginx Proxy Manager](https://nginxproxymanager.com/) REST API** for all data operations
@@ -248,6 +250,17 @@ This app uses [Nginx Proxy Manager's REST API](https://github.com/NginxProxyMana
 ## Acknowledgments
 
 This project exists because of [Nginx Proxy Manager](https://nginxproxymanager.com/) by [@jc21](https://github.com/jc21). NPM made self-hosting accessible — this app just adds user management on top of the excellent foundation NPM provides.
+
+Generic **OIDC / Auth.js support** — letting you swap Clerk for self-hosted providers like [authentik](https://goauthentik.io/), Keycloak, or any OIDC issuer — was contributed by [@mapo-89](https://github.com/mapo-89). Thank you! This delivered the swappable-auth the project always aimed for.
+
+## Changelog
+
+### 2026-06-14 — Generic OIDC / Auth.js support
+
+- **Authentication is now swappable** via `AUTH_PROVIDER=clerk|oidc`. Clerk remains the default; point `OIDC_ISSUER` at any OpenID Connect provider ([authentik](https://goauthentik.io/), Keycloak, Google, etc.). Contributed by [@mapo-89](https://github.com/mapo-89) (#1).
+- **OIDC group → role mapping**: map IdP groups to admin access and NPM ACLs via `ADMIN_GROUPS` and `ACL_GROUP_MAP`.
+- Verified end-to-end against a live authentik instance. Three follow-up fixes landed alongside (#2, #3): request the `groups` scope, preserve groups across requests, and a dedicated `/signed-out` page so sign-out no longer bounces back through SSO.
+- Also fixed a pre-existing `npm install` dependency conflict on `main` (React canary + floating Clerk version).
 
 ## Contributing
 
